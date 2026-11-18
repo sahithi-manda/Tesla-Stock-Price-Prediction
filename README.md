@@ -1,141 +1,87 @@
-# Tesla Stock Price Prediction 📈
+# Tesla Stock Price Prediction
 
-A time-series forecasting project that uses **Long Short-Term Memory (LSTM)** neural networks to predict future Tesla (TSLA) adjusted closing prices.
+Forecasts Tesla's adjusted closing price from the previous 60 trading days, comparing a SimpleRNN with an LSTM, and serves the LSTM through a Streamlit app.
 
-## ✨ Features
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![TensorFlow](https://img.shields.io/badge/TensorFlow%20%2F%20Keras-FF6F00?logo=tensorflow&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 
-- Historical Tesla stock price analysis
-- Time-series forecasting using LSTM
-- SimpleRNN vs LSTM comparison
-- Data preprocessing using MinMaxScaler
-- Model evaluation using RMSE
-- Streamlit-based prediction interface
-- 1, 5 and 10-step forecasting
-- Actual vs predicted price visualization
+## Problem
 
-## 🧠 Tech Stack
+Stock prices are a noisy, non-stationary time series. The project asks a narrow question: given the last 60 days of prices, how well can a recurrent network predict the next day? And does an LSTM's extra memory machinery help over a plain RNN on this data?
 
-- Python
-- TensorFlow / Keras
-- NumPy
-- Pandas
-- Scikit-learn
-- Matplotlib
-- Streamlit
-- Joblib
-- Jupyter Notebook / Google Colab
+## Data
 
-## 📁 Project Structure
+Daily TSLA prices in Yahoo Finance CSV format (`Date, Open, High, Low, Close, Adj Close, Volume`), starting 29 June 2010. Only `Adj Close` is used. The CSV is not included in this repository: download TSLA history from Yahoo Finance and save it as `TSLA.csv` next to the notebook.
 
-```text
-Tesla-Stock-Price-Prediction/
-│
-├── Tesla Stock Price Prediction.ipynb
-├── app.py
-├── lstm_model.h5
-├── scaler.pkl
-├── requirements.txt
-└── README.md
+## Method
+
+```
+TSLA.csv → Adj Close → forward-fill gaps → MinMaxScaler (0–1)
+   → chronological split: first 80% train, last 20% test
+   → sliding windows: 60 days in → next day out
+   → SimpleRNN(64) + Dropout(0.2) + Dense(1)
+     LSTM(64)      + Dropout(0.2) + Dense(1)
+       (Adam, MSE loss, 20% validation split, early stopping, patience 5)
+   → inverse-scale predictions → RMSE in USD on the test period
 ```
 
-## ⚙️ Model Workflow
+## Results
 
-1. Load historical Tesla stock data.
-2. Extract the adjusted closing price.
-3. Handle missing values.
-4. Normalize data using MinMaxScaler.
-5. Create sequences using a 60-day lookback window.
-6. Train SimpleRNN and LSTM models.
-7. Evaluate predictions using RMSE.
-8. Save the trained LSTM model and scaler.
-9. Generate future predictions through Streamlit.
+From the saved notebook output (single run):
 
-## 🚀 Installation & Setup
+| Model | Test RMSE (USD) |
+|---|---|
+| **SimpleRNN** | **13.00** |
+| LSTM | 18.79 |
 
-### 1. Clone the repository
+**The simpler model won.** With one input feature and a 60-day window, the dependencies the LSTM's gates are designed for don't add much, and its extra parameters didn't pay off in this run. Neural network training is stochastic, so a fair comparison would average several runs.
 
-```bash
-git clone https://github.com/sahithi-manda/Tesla-Stock-Price-Prediction.git
+The app currently ships the **LSTM** (`lstm_model.h5`), the only model file exported to this repo. Switching to the SimpleRNN is listed under next steps.
 
-cd Tesla-Stock-Price-Prediction
-```
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv venv
-```
-
-Activate it:
-
-**Windows**
-```bash
-venv\Scripts\activate
-```
-
-**Linux / macOS**
-```bash
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Run the application
+## App
 
 ```bash
 streamlit run app.py
 ```
 
-## 📊 Using the Application
+Upload a CSV with `Date` and `Adj Close` columns (at least 60 rows) and choose a horizon of 1, 5 or 10 days. Multi-day forecasts are **recursive**: each prediction is fed back in as the newest input. Errors compound with every step, so treat 5- and 10-day outputs as illustrative.
 
-1. Upload a Tesla historical stock CSV file.
-2. Ensure it contains `Date` and `Adj Close` columns.
-3. Select your prediction horizon:
-   - 1 step
-   - 5 steps
-   - 10 steps
-4. Click **Predict**.
-5. View the predicted prices and visualization.
+## Project structure
 
-**Note:** The application requires at least 60 historical observations.
+```
+├── Tesla Stock Price Prediction.ipynb   # Data prep, SimpleRNN vs LSTM, evaluation
+├── app.py                               # Streamlit forecasting app
+├── lstm_model.h5                        # Trained LSTM (Keras HDF5)
+├── scaler.pkl                           # Fitted MinMaxScaler
+└── requirements.txt
+```
 
-## 📓 Training Notebook
+## Setup
 
-The Jupyter notebook contains:
+```bash
+git clone https://github.com/sahithi-manda/Tesla-Stock-Price-Prediction.git
+cd Tesla-Stock-Price-Prediction
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-- Data loading and exploration
-- Data preprocessing
-- Sequence generation
-- SimpleRNN implementation
-- LSTM implementation
-- Model training
-- RMSE evaluation
-- Actual vs predicted visualization
-- Model saving and export
+To retrain, open the notebook. It was written for Google Colab: the `files.upload()` and `files.download()` cells can be skipped when running locally with `TSLA.csv` in the same folder.
 
-## 🔮 Future Improvements
+## Known limitations
 
-- Interactive financial dashboards
-- Additional forecasting models
-- Improved model evaluation
-- Downloadable prediction reports
-- Real-time market data integration
-- Trading-calendar-aware forecasting
+- **Scaling leakage:** the scaler is fit on the full series before the train/test split, so test-period min/max values influence training. Fitting on the training portion only would make the evaluation stricter.
+- **No naive baseline.** For daily prices, "tomorrow = today" is a strong baseline. RMSE should be compared against it before claiming the models add value.
+- One feature (`Adj Close`) only; volume and returns-based features are unused.
 
-## 👩‍💻 Author
+## Next steps
 
-**Sahithi Manda**
-
-GitHub: [@sahithi-manda](https://github.com/sahithi-manda)
-
-Project: [Tesla Stock Price Prediction](https://github.com/sahithi-manda/Tesla-Stock-Price-Prediction)
+- Fit the scaler on training data only, add a persistence baseline, and report mean ± std RMSE over several seeds.
+- Export the SimpleRNN as well and let the app use whichever model performs best.
+- Predict returns instead of raw prices, which makes the series closer to stationary.
 
 ---
 
-**Disclaimer:** This project is developed for educational and research purposes only. Predictions are not financial advice or guaranteed future stock prices.
-
-⭐ If you find this project useful, consider starring the repository!
+*Educational project, not financial advice.*
