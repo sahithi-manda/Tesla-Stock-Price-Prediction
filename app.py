@@ -2,22 +2,24 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from tensorflow.keras.models import load_model
-
-model = load_model("lstm_model.h5", compile=False)
-
 import matplotlib.pyplot as plt
+from tensorflow.keras.models import load_model
 
 st.set_page_config(page_title="Tesla Stock Predictor")
 
 st.title("Tesla Stock Price Prediction")
-st.write("Forecast Tesla closing prices using an LSTM model.")
+st.write("Forecast Tesla adjusted closing prices using an LSTM model.")
 
-# Load artifacts
-model = load_model("lstm_model.h5", compile=False)
-model.compile(optimizer="adam", loss="mse", metrics=["mse"])
 
-scaler = joblib.load("scaler.pkl")
+@st.cache_resource
+def load_artifacts():
+    """Load the trained model and scaler once per session, not on every rerun."""
+    model = load_model("lstm_model.h5", compile=False)
+    scaler = joblib.load("scaler.pkl")
+    return model, scaler
+
+
+model, scaler = load_artifacts()
 
 WINDOW = 60   # use the same window you trained with
 
@@ -57,7 +59,8 @@ if file:
         if st.button("Predict"):
             preds = predict_future(last_seq, horizon)
 
-            future_dates = pd.date_range(df.index[-1], periods=horizon+1, freq='D')[1:]
+            # Business days: markets are closed at weekends.
+            future_dates = pd.bdate_range(df.index[-1], periods=horizon+1)[1:]
             result = pd.DataFrame({"Predicted Close": preds.flatten()}, index=future_dates)
 
             st.success("Prediction generated:")

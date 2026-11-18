@@ -42,11 +42,13 @@ The app currently ships the **LSTM** (`lstm_model.h5`), the only model file expo
 
 ## App
 
+![Streamlit app](docs/app.png)
+
 ```bash
 streamlit run app.py
 ```
 
-Upload a CSV with `Date` and `Adj Close` columns (at least 60 rows) and choose a horizon of 1, 5 or 10 days. Multi-day forecasts are **recursive**: each prediction is fed back in as the newest input. Errors compound with every step, so treat 5- and 10-day outputs as illustrative.
+Upload a CSV with `Date` and `Adj Close` columns (at least 60 rows) and choose a horizon of 1, 5 or 10 trading days. Multi-day forecasts are **recursive**: each prediction is fed back in as the newest input. Errors compound with every step, so treat 5- and 10-day outputs as illustrative.
 
 ## Project structure
 
